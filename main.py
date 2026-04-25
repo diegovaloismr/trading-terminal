@@ -1,3 +1,6 @@
+import requests
+import os
+
 TOKEN = "8665085121:AAE8JtiaJSFfzUBzCXfkiE_Kj37PM-dZqdQ"
 CHAT_ID = "1170473159"
 
