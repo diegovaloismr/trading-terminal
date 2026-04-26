@@ -13,8 +13,8 @@ def home():
     return "🚀 Radar rodando..."
 
 
+# 🧠 horário do mercado (Brasil UTC-3)
 def dentro_do_horario():
-    # ✅ forma correta (sem deprecated)
     agora = datetime.now(timezone.utc) - timedelta(hours=3)
 
     if agora.weekday() <= 4:
@@ -24,6 +24,7 @@ def dentro_do_horario():
     return False
 
 
+# 🔁 LOOP PRINCIPAL
 def loop_principal():
     while True:
         try:
@@ -42,21 +43,15 @@ def loop_principal():
 
 print("🚀 Sistema rodando na nuvem...")
 
+
+# 🔥 INICIA LOOP EM THREAD (DIRETO)
+thread = threading.Thread(target=loop_principal)
+thread.daemon = True
+thread.start()
+
+
 # 🔧 porta Railway
 port = int(os.environ.get("PORT", 8080))
 
-
-def start_background():
-    thread = threading.Thread(target=loop_principal)
-    thread.daemon = True
-    thread.start()
-
-
-# 🔥 INICIA LOOP SOMENTE DEPOIS DO SERVER
-@app.before_first_request
-def iniciar():
-    start_background()
-
-
-# 🔥 roda servidor (ESSENCIAL)
+# 🔥 servidor web (mantém container vivo)
 app.run(host="0.0.0.0", port=port)
