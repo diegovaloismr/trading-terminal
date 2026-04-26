@@ -1,3 +1,7 @@
+from services.news import (
+    processar_noticias,
+    analisar_noticias,
+    selecionar_noticia_principal)
 from dotenv import load_dotenv
 load_dotenv()
 import requests
