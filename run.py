@@ -1,6 +1,7 @@
 import time
 import os
-from datetime import datetime, timedelta
+import threading
+from datetime import datetime, timedelta, timezone
 from flask import Flask
 from main import main
 
@@ -13,7 +14,8 @@ def home():
 
 
 def dentro_do_horario():
-    agora = datetime.utcnow() - timedelta(hours=3)
+    # ✅ forma correta (sem deprecated)
+    agora = datetime.now(timezone.utc) - timedelta(hours=3)
 
     if agora.weekday() <= 4:
         if 7 <= agora.hour < 18:
@@ -22,7 +24,6 @@ def dentro_do_horario():
     return False
 
 
-# 🔁 LOOP PRINCIPAL (SEM THREAD)
 def loop_principal():
     while True:
         try:
@@ -39,12 +40,23 @@ def loop_principal():
             time.sleep(60)
 
 
-# 🔥 inicia loop em background (mas direto)
-import threading
-threading.Thread(target=loop_principal, daemon=True).start()
-
 print("🚀 Sistema rodando na nuvem...")
 
-# 🔧 porta dinâmica Railway
+# 🔧 porta Railway
 port = int(os.environ.get("PORT", 8080))
+
+
+def start_background():
+    thread = threading.Thread(target=loop_principal)
+    thread.daemon = True
+    thread.start()
+
+
+# 🔥 INICIA LOOP SOMENTE DEPOIS DO SERVER
+@app.before_first_request
+def iniciar():
+    start_background()
+
+
+# 🔥 roda servidor (ESSENCIAL)
 app.run(host="0.0.0.0", port=port)
