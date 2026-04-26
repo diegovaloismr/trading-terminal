@@ -1,9 +1,18 @@
 import time
 import os
 import threading
+import logging
 from datetime import datetime, timedelta, timezone
 from flask import Flask
 from main import main
+
+# 🧠 CONFIG LOG
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -13,7 +22,7 @@ def home():
     return "🚀 Radar rodando..."
 
 
-# 🧠 horário do mercado (Brasil UTC-3)
+# 🧠 horário do mercado (BRT)
 def dentro_do_horario():
     agora = datetime.now(timezone.utc) - timedelta(hours=3)
 
@@ -26,32 +35,32 @@ def dentro_do_horario():
 
 # 🔁 LOOP PRINCIPAL
 def loop_principal():
+    logger.info("Loop principal iniciado")
+
     while True:
         try:
             if dentro_do_horario():
-                print("📊 Mercado aberto → executando...")
+                logger.info("[MARKET] Mercado aberto → executando")
                 main()
             else:
-                print("⏸️ Fora do horário (sistema ativo)")
+                logger.info("[MARKET] Fora do horário")
 
-            time.sleep(300)  # 5 minutos
+            time.sleep(300)
 
         except Exception as e:
-            print("Erro no loop:", e)
+            logger.error(f"[ERROR] Erro no loop: {e}")
             time.sleep(60)
 
 
-print("🚀 Sistema rodando na nuvem...")
+logger.info("🚀 Sistema rodando na nuvem...")
 
-
-# 🔥 INICIA LOOP EM THREAD (DIRETO)
+# 🔥 THREAD
 thread = threading.Thread(target=loop_principal)
 thread.daemon = True
 thread.start()
 
-
-# 🔧 porta Railway
+# 🔧 PORTA
 port = int(os.environ.get("PORT", 8080))
 
-# 🔥 servidor web (mantém container vivo)
+# 🚀 SERVIDOR
 app.run(host="0.0.0.0", port=port)

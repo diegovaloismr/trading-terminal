@@ -1,5 +1,6 @@
 import requests
 import os
+import logging
 
 # 📊 Macro
 from services.macro import (
@@ -26,15 +27,19 @@ from services.intelligence import (
 from services.news import processar_noticias
 
 
-# 🔑 CONFIG (Railway usa variáveis de ambiente)
+# 🧠 CONFIG LOG
+logger = logging.getLogger(__name__)
+
+
+# 🔑 CONFIG
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 
-# 📤 Enviar mensagem para Telegram
+# 📤 Enviar mensagem Telegram
 def send_message(text):
     if not TOKEN or not CHAT_ID:
-        print("⚠️ TOKEN ou CHAT_ID não configurados")
+        logger.warning("[TELEGRAM] TOKEN ou CHAT_ID não configurados")
         return
 
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -46,81 +51,108 @@ def send_message(text):
 
     try:
         requests.post(url, data=payload)
+        logger.info("[TELEGRAM] Mensagem enviada")
     except Exception as e:
-        print("Erro ao enviar mensagem:", e)
+        logger.error(f"[TELEGRAM] Erro ao enviar mensagem: {e}")
 
 
 # 🚀 FUNÇÃO PRINCIPAL
 def main():
-    print("🚀 Executando ciclo do radar...")
+    logger.info("[SYSTEM] Iniciando ciclo do radar")
 
-    # =========================
-    # 📅 EVENTOS MACRO
-    # =========================
-    eventos = get_macro_events()
-    relevantes = filtrar_eventos_relevantes(eventos)
-    mensagem_macro = formatar_mensagem(relevantes)
+    try:
+        # =========================
+        # 📅 EVENTOS MACRO
+        # =========================
+        logger.info("[MACRO] Buscando eventos")
 
-    send_message(mensagem_macro)
+        eventos = get_macro_events()
+        relevantes = filtrar_eventos_relevantes(eventos)
+        mensagem_macro = formatar_mensagem(relevantes)
 
-    # =========================
-    # 🌎 DADOS DE MERCADO
-    # =========================
-    sp = get_sp500()
-    dxy = get_dxy_proxy()
-    usd = get_usd_brl()
+        send_message(mensagem_macro)
+        logger.info(f"[MACRO] {len(relevantes)} eventos relevantes enviados")
 
-    # =========================
-    # 🧠 CENÁRIO
-    # =========================
-    sinais = analisar_cenario(sp, dxy, usd)
+        # =========================
+        # 🌎 DADOS DE MERCADO
+        # =========================
+        logger.info("[MARKET] Coletando dados")
 
-    for s in sinais:
-        send_message(f"🧠 CENÁRIO\n\n{s}")
+        sp = get_sp500()
+        dxy = get_dxy_proxy()
+        usd = get_usd_brl()
 
-    # =========================
-    # 🔥 SCORE DE MERCADO
-    # =========================
-    score, detalhes = calcular_score(sp, dxy, usd)
+        logger.info(f"[MARKET] SP500={sp} | DXY={dxy} | USD/BRL={usd}")
 
-    interpretacao = "NEUTRO"
+        # =========================
+        # 🧠 CENÁRIO
+        # =========================
+        logger.info("[SCENARIO] Analisando cenário")
 
-    if score >= 3:
-        interpretacao = "🚀 FORTE ALTA"
-    elif score >= 1:
-        interpretacao = "📈 ALTA"
-    elif score <= -3:
-        interpretacao = "💥 FORTE QUEDA"
-    elif score <= -1:
-        interpretacao = "📉 QUEDA"
+        sinais = analisar_cenario(sp, dxy, usd)
 
-    mensagem_score = f"""
+        for s in sinais:
+            send_message(f"🧠 CENÁRIO\n\n{s}")
+
+        logger.info(f"[SCENARIO] {len(sinais)} sinais enviados")
+
+        # =========================
+        # 🔥 SCORE
+        # =========================
+        logger.info("[SCORE] Calculando score")
+
+        score, detalhes = calcular_score(sp, dxy, usd)
+
+        interpretacao = "NEUTRO"
+
+        if score >= 3:
+            interpretacao = "🚀 FORTE ALTA"
+        elif score >= 1:
+            interpretacao = "📈 ALTA"
+        elif score <= -3:
+            interpretacao = "💥 FORTE QUEDA"
+        elif score <= -1:
+            interpretacao = "📉 QUEDA"
+
+        mensagem_score = f"""
 🔥 SCORE DE MERCADO: {score} ({interpretacao})
 
 {chr(10).join(detalhes)}
 """
 
-    send_message(mensagem_score)
+        send_message(mensagem_score)
 
-    # =========================
-    # 🚨 MUDANÇA DE REGIME
-    # =========================
-    mudanca = detectar_mudanca(score)
+        logger.info(f"[SCORE] Score={score} ({interpretacao})")
 
-    if mudanca:
-        send_message(mudanca)
+        # =========================
+        # 🚨 MUDANÇA DE REGIME
+        # =========================
+        logger.info("[REGIME] Verificando mudança")
 
-    # =========================
-    # 📰 NOTÍCIAS
-    # =========================
-    noticias = processar_noticias()
+        mudanca = detectar_mudanca(score)
 
-    for n in noticias[:3]:
-        send_message(n)
+        if mudanca:
+            send_message(mudanca)
+            logger.info("[REGIME] Mudança detectada e enviada")
 
-    print("✅ Ciclo finalizado\n")
+        # =========================
+        # 📰 NOTÍCIAS
+        # =========================
+        logger.info("[NEWS] Buscando notícias")
+
+        noticias = processar_noticias()
+
+        for n in noticias[:3]:
+            send_message(n)
+
+        logger.info(f"[NEWS] {len(noticias[:3])} notícias enviadas")
+
+        logger.info("[SYSTEM] Ciclo finalizado com sucesso\n")
+
+    except Exception as e:
+        logger.error(f"[SYSTEM] Erro no ciclo principal: {e}")
 
 
-# ▶️ Execução local (opcional)
+# ▶️ Execução local
 if __name__ == "__main__":
     main()
