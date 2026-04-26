@@ -1,131 +1,97 @@
-import requests
-import time
+import logging
 
-API_KEY = "cc9552f9b0b440ce99d92fd19491ffc4"
-
-# 🧠 cache de notícias já enviadas
-noticias_enviadas = set()
+logger = logging.getLogger(__name__)
 
 
-def get_market_news():
-    url = f"https://newsapi.org/v2/everything?q=finance OR economy OR fed OR inflation OR interest rate&language=en&sortBy=publishedAt&apiKey={API_KEY}"
-
+def processar_noticias():
+    """
+    Aqui você já deve ter sua fonte (API ou RSS)
+    Mantive genérico para não quebrar seu sistema.
+    """
     try:
-        response = requests.get(url)
-        data = response.json()
-
-        articles = data.get("articles", [])[:10]
-
-        noticias = []
-
-        for a in articles:
-            titulo = a["title"]
-            noticias.append(titulo)
-
+        # EXEMPLO (substituir pelo seu fetch real)
+        noticias = [
+            "Fed signals possible rate hike amid inflation concerns",
+            "China stimulus boosts growth expectations",
+            "Geopolitical tensions increase in Middle East",
+        ]
         return noticias
 
     except Exception as e:
-        print("Erro ao buscar notícias:", e)
+        logger.error(f"[NEWS] Erro ao buscar notícias: {e}")
         return []
 
 
-# 🔍 filtro de relevância
-def filtrar_noticias_relevantes(noticias):
-    palavras_chave = [
-        "inflation", "interest rate", "fed",
-        "central bank", "recession", "gdp",
-        "oil", "war", "china", "unemployment"
-    ]
+def classificar_noticia(texto):
+    texto = texto.lower()
 
-    relevantes = []
+    impacto = 1
+    peso_pais = 1
+    sentimento = 0
+    breaking = False
 
-    for n in noticias:
-        for palavra in palavras_chave:
-            if palavra.lower() in n.lower():
-                relevantes.append(n)
-                break
+    # 🌍 País
+    if any(p in texto for p in ["fed", "usa", "united states", "treasury"]):
+        peso_pais = 3
+    elif any(p in texto for p in ["china", "pboe"]):
+        peso_pais = 2
 
-    return relevantes
+    # 🔥 Impacto
+    if any(p in texto for p in ["rate hike", "inflation", "crisis", "war", "recession"]):
+        impacto = 3
+    elif any(p in texto for p in ["growth", "stimulus", "cut rates"]):
+        impacto = 2
 
+    # 🧠 Sentimento
+    if any(p in texto for p in ["growth", "stimulus", "recovery"]):
+        sentimento = 1
+    elif any(p in texto for p in ["inflation", "crisis", "war", "hawkish"]):
+        sentimento = -1
 
-# 🧠 classificar impacto
-def classificar_impacto(noticia):
-    alto = ["fed", "interest rate", "inflation", "cpi", "central bank"]
-    medio = ["gdp", "unemployment", "china", "oil"]
+    # ⚡ Breaking
+    if any(p in texto for p in ["breaking", "urgent", "just in"]):
+        breaking = True
+        impacto += 2
 
-    texto = noticia.lower()
+    score = sentimento * impacto * peso_pais
 
-    for p in alto:
-        if p in texto:
-            return "🔴 ALTO IMPACTO"
-
-    for p in medio:
-        if p in texto:
-            return "🟡 MÉDIO IMPACTO"
-
-    return "🟢 BAIXO IMPACTO"
-
-
-# 🧠 traduzir para impacto no mercado
-def traduzir_para_mercado(noticia):
-    texto = noticia.lower()
-
-    impactos = []
-
-    if "inflation" in texto or "cpi" in texto:
-        impactos.append("→ inflação alta pode pressionar juros")
-        impactos.append("→ dólar tende a subir (WDO ↑)")
-        impactos.append("→ índice pode cair (WIN ↓)")
-
-    if "interest rate" in texto or "fed" in texto:
-        impactos.append("→ juros impactam diretamente o fluxo global")
-        impactos.append("→ alta de juros favorece dólar (WDO ↑)")
-        impactos.append("→ pressão no índice (WIN ↓)")
-
-    if "oil" in texto:
-        impactos.append("→ impacto em commodities (PETR)")
-        impactos.append("→ pode influenciar o WIN")
-
-    if "china" in texto:
-        impactos.append("→ impacto em commodities e VALE")
-        impactos.append("→ reflexo direto no WIN")
-
-    if "war" in texto:
-        impactos.append("→ aumento de aversão ao risco")
-        impactos.append("→ dólar sobe (WDO ↑)")
-        impactos.append("→ índice cai (WIN ↓)")
-
-    return impactos
+    return {
+        "texto": texto,
+        "impacto": impacto,
+        "peso": peso_pais,
+        "sentimento": sentimento,
+        "breaking": breaking,
+        "score": score
+    }
 
 
-# 🚫 evitar repetição
-def noticia_ja_enviada(noticia):
-    if noticia in noticias_enviadas:
-        return True
+def analisar_noticias(noticias):
+    try:
+        total_score = 0
+        breaking_flag = False
 
-    noticias_enviadas.add(noticia)
-    return False
+        for n in noticias:
+            data = classificar_noticia(n)
 
+            total_score += data["score"]
 
-# 🚀 função principal
-def processar_noticias():
-    noticias = get_market_news()
-    relevantes = filtrar_noticias_relevantes(noticias)
+            if data["breaking"]:
+                breaking_flag = True
 
-    mensagens = []
+        # 🧠 normalização simples
+        if total_score > 5:
+            sentimento = 1
+        elif total_score < -5:
+            sentimento = -1
+        else:
+            sentimento = 0
 
-    for n in relevantes:
-        if noticia_ja_enviada(n):
-            continue
+        return {
+            "sentimento": sentimento,
+            "breaking": breaking_flag,
+            "score": total_score
+        }
 
-        impacto = classificar_impacto(n)
-        efeitos = traduzir_para_mercado(n)
-
-        mensagem = f"📰 NOTÍCIA\n\n{impacto}\n{n}\n\n"
-
-        if efeitos:
-            mensagem += "\n".join(efeitos)
-
-        mensagens.append(mensagem)
-
-    return mensagens
+    except Exception as e:
+        logger.error(f"[NEWS] Erro análise: {e}")
+        return {"sentimento": 0, "breaking": False, "score": 0}
