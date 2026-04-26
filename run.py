@@ -1,12 +1,10 @@
 import time
-import os
 import threading
 import logging
 from datetime import datetime, timedelta, timezone
 from flask import Flask
 from main import main
 
-# 🧠 CONFIG LOG
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -22,7 +20,6 @@ def home():
     return "🚀 Radar rodando..."
 
 
-# 🧠 horário do mercado (BRT)
 def dentro_do_horario():
     agora = datetime.now(timezone.utc) - timedelta(hours=3)
 
@@ -33,7 +30,6 @@ def dentro_do_horario():
     return False
 
 
-# 🔁 LOOP PRINCIPAL
 def loop_principal():
     logger.info("Loop principal iniciado")
 
@@ -48,19 +44,13 @@ def loop_principal():
             time.sleep(300)
 
         except Exception as e:
-            logger.error(f"[ERROR] Erro no loop: {e}")
+            logger.error(f"[ERROR] {e}")
             time.sleep(60)
 
 
-logger.info("🚀 Sistema rodando na nuvem...")
-
-# 🔥 THREAD
+# 🔥 inicia thread (ESSENCIAL)
 thread = threading.Thread(target=loop_principal)
 thread.daemon = True
 thread.start()
 
-# 🔧 PORTA
-port = int(os.environ.get("PORT", 8080))
-
-# 🚀 SERVIDOR
-app.run(host="0.0.0.0", port=port)
+logger.info("🚀 Sistema rodando na nuvem...")
