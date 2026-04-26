@@ -1,12 +1,13 @@
 import schedule
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from main import main
 
-def dentro_do_horario():
-agora = datetime.utcnow() - timedelta(hours=3)
 
-    # segunda a sexta
+def dentro_do_horario():
+    agora = datetime.utcnow() - timedelta(hours=3)
+
+    # segunda a sexta (0=segunda, 6=domingo)
     if agora.weekday() <= 4:
         if 7 <= agora.hour < 18:
             return True
@@ -27,7 +28,8 @@ schedule.every(5).minutes.do(job)
 
 print("🚀 Sistema rodando na nuvem...")
 
-# 🔒 LOOP FORÇADO (ESSENCIAL)
+
+# 🔒 LOOP CONTÍNUO (ESSENCIAL)
 while True:
     try:
         schedule.run_pending()
