@@ -4,7 +4,7 @@ from datetime import datetime
 from main import main
 
 def dentro_do_horario():
-    agora = datetime.now()
+agora = datetime.utcnow() - timedelta(hours=3)
 
     # segunda a sexta
     if agora.weekday() <= 4:
@@ -19,31 +19,19 @@ def job():
         print("📊 Mercado aberto → executando...")
         main()
     else:
-        print("⏸️ Fora do horário de mercado")
+        print("⏸️ Fora do horário (mantendo sistema ativo)")
 
 
-# 🧠 resumo domingo
-def resumo_domingo():
-    agora = datetime.now()
-
-    if agora.weekday() == 6 and agora.hour == 18:
-        print("📅 Gerando resumo semanal...")
-
-        from services.news import processar_noticias
-
-        noticias = processar_noticias()
-
-        for n in noticias[:5]:
-            from main import send_message
-            send_message(f"📊 RESUMO SEMANAL\n\n{n}")
-
-
-# ⏱️ agenda
+# roda a cada 5 minutos
 schedule.every(5).minutes.do(job)
-schedule.every().hour.do(resumo_domingo)
 
 print("🚀 Sistema rodando na nuvem...")
 
+# 🔒 LOOP FORÇADO (ESSENCIAL)
 while True:
-    schedule.run_pending()
-    time.sleep(30)
+    try:
+        schedule.run_pending()
+        time.sleep(30)
+    except Exception as e:
+        print("Erro no loop:", e)
+        time.sleep(60)
