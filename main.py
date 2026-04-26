@@ -1,9 +1,3 @@
-from services.news import (
-    processar_noticias,
-    analisar_noticias,
-    selecionar_noticia_principal)
-from dotenv import load_dotenv
-load_dotenv()
 import requests
 import os
 import logging
@@ -30,7 +24,11 @@ from services.intelligence import (
 )
 
 # 📰 Notícias
-from services.news import processar_noticias, analisar_noticias
+from services.news import (
+    processar_noticias,
+    analisar_noticias,
+    selecionar_noticia_principal,
+)
 
 # ⚡ Entrada
 from services.entry import gerar_entrada
@@ -39,11 +37,16 @@ from services.entry import gerar_entrada
 # =========================
 # 🧠 LOG
 # =========================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 
 # =========================
-# 🔑 CONFIG (SEGURA)
+# 🔑 CONFIG
 # =========================
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -139,29 +142,27 @@ def main():
 """
 
         send_message(mensagem_score)
-
         logger.info(f"[SCORE] {score} ({interpretacao})")
 
         # =========================
         # 📰 NEWS
         # =========================
-logger.info("[NEWS] Processando notícias")
+        logger.info("[NEWS] Processando notícias")
 
-noticias = processar_noticias()
-news_data = analisar_noticias(noticias)
+        noticias = processar_noticias()
+        news_data = analisar_noticias(noticias)
+        noticia_principal = selecionar_noticia_principal(noticias)
 
-noticia_principal = selecionar_noticia_principal(noticias)
+        logger.info(
+            f"[NEWS] Sentimento={news_data['sentimento']} | "
+            f"Breaking={news_data['breaking']} | Score={news_data['score']}"
+        )
 
-logger.info(
-    f"[NEWS] Sentimento={news_data['sentimento']} | "
-    f"Breaking={news_data['breaking']} | Score={news_data['score']}"
-)
+        # 📢 Envia notícia relevante
+        if noticia_principal:
+            if noticia_principal["impacto"] >= 2 or noticia_principal["breaking"]:
 
-# 📢 ENVIO DE ATUALIZAÇÃO (se relevante)
-if noticia_principal:
-    if noticia_principal["impacto"] >= 2 or noticia_principal["breaking"]:
-
-        mensagem_news = f"""
+                mensagem_news = f"""
 📰 ATUALIZAÇÃO DE MERCADO
 
 {noticia_principal['texto']}
@@ -170,22 +171,20 @@ Impacto: {noticia_principal['impacto']}
 Sentimento: {noticia_principal['sentimento']}
 ⚡ Breaking: {noticia_principal['breaking']}
 """
-
-        send_message(mensagem_news)
-        logger.info("[NEWS] Notícia principal enviada")
+                send_message(mensagem_news)
+                logger.info("[NEWS] Notícia enviada")
 
         # =========================
         # ⚡ ENTRY
         # =========================
+        logger.info("[ENTRY] Avaliando entradas")
 
-logger.info("[ENTRY] Avaliando entradas")
+        entradas = gerar_entrada(sp, dxy, usd, score, news_data)
 
-entradas = gerar_entrada(sp, dxy, usd, score, news_data)
+        if entradas:
+            for e in entradas:
 
-if entradas:
-    for e in entradas:
-
-        mensagem = f"""
+                mensagem = f"""
 ⚡ ENTRADA DETECTADA
 
 Ativo: {e['tipo']}
@@ -195,21 +194,20 @@ Ação: {e['acao']}
 {e['msg']}
 """
 
-        # 🔥 adicionar notícia SOMENTE se relevante para preço
-        if news_data["breaking"] or abs(news_data["score"]) >= 5:
-            mensagem += f"""
+                if news_data["breaking"] or abs(news_data["score"]) >= 5:
+                    mensagem += f"""
 
 📰 Contexto de notícia:
 Sentimento: {news_data['sentimento']}
 Impacto relevante no mercado
 """
 
-        send_message(mensagem)
+                send_message(mensagem)
 
-    logger.info(f"[ENTRY] {len(entradas)} entradas enviadas")
+            logger.info(f"[ENTRY] {len(entradas)} entradas enviadas")
 
-else:
-    logger.info("[ENTRY] Nenhuma entrada válida")
+        else:
+            logger.info("[ENTRY] Nenhuma entrada válida")
 
         # =========================
         # 🚨 REGIME
